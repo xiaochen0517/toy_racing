@@ -2,7 +2,7 @@ function App() {
 
   return (
     <>
-      <h1>Toy Racing</h1>
+      <h1 className="text-xl">Toy Racing</h1>
     </>
   )
 }
