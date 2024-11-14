@@ -4,7 +4,7 @@ import {Suspense} from "react";
 import LoadingScene from "./scenes/base/LoadingScene.tsx";
 import {Physics, RigidBody} from "@react-three/rapier";
 import {Perf} from "r3f-perf";
-import {VehicleRacerLow} from "./components/vehicles/VehicleRacerLow.tsx";
+import TestSuspension from "./components/vehicles/TestSuspension.tsx";
 
 export default function App() {
 
@@ -27,9 +27,10 @@ export default function App() {
             <ambientLight intensity={0.5}/>
             <directionalLight intensity={1} position={[0, 5, 5]} castShadow/>
             <Physics debug={true}>
-              <VehicleRacerLow position={[0, 0.5, 0]}/>
+              <TestSuspension/>
+              {/*<VehicleRacerLow position={[0, 0.5, 0]}/>*/}
               <RigidBody type="fixed" restitution={0.2} friction={1}>
-                <Box args={[10, 0.4, 10]} position={[0, -0.2, 0]} receiveShadow>
+                <Box args={[50, 0.4, 50]} position={[0, -0.2, 0]} receiveShadow>
                   <MeshDiscardMaterial/>
                 </Box>
                 {/*<Box args={[2, 0.4, 2]} position={[0, -0.5, -2]} rotation={[Math.PI * 0.2, 0, 0]} receiveShadow>*/}

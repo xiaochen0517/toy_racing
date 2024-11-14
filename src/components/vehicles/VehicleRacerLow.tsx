@@ -5,7 +5,7 @@ Command: npx gltfjsx@6.5.3 .\vehicle-racer-low.glb -c -t
 
 import * as THREE from "three"
 import {Quaternion, Vector3} from "three"
-import {useGLTF, useKeyboardControls} from "@react-three/drei"
+import {MeshDiscardMaterial, useGLTF, useKeyboardControls} from "@react-three/drei"
 import {GLTF} from "three-stdlib"
 import {interactionGroups, RapierRigidBody, RigidBody, useFixedJoint, useRevoluteJoint} from "@react-three/rapier";
 import {MutableRefObject, useRef} from "react";
@@ -130,7 +130,7 @@ export function VehicleRacerLow(props: JSX.IntrinsicElements['group']) {
 
   return (
     <group {...props} dispose={null}>
-      <RigidBody ref={bodyRef} colliders="hull" collisionGroups={interactionGroups([3], [1])} position={[0, 0, 0]} rotation={[Math.PI * 0.5, 0, 0]}>
+      <RigidBody ref={bodyRef} colliders="hull" collisionGroups={interactionGroups([3], [1])} position={[0, 0, 0]}>
         <mesh geometry={nodes['vehicle-racer-low_1'].geometry} material={materials.colormap}/>
       </RigidBody>
       <Suspension
@@ -141,14 +141,16 @@ export function VehicleRacerLow(props: JSX.IntrinsicElements['group']) {
       />
       <RigidBody
         ref={wheelRefs.fr}
-        colliders="ball"
+        colliders="trimesh"
         collisionGroups={interactionGroups([4], [1])}
         position={[0.237, 0.125, -0.25]}
         rotation={[0, 0, 0]}
         restitution={WHEEL_RESTITUTION}
         friction={WHEEL_FRICTION}
       >
-        <mesh geometry={nodes['wheel-fr'].geometry} material={materials.colormap}/>
+        <mesh geometry={nodes['wheel-fr'].geometry} material={materials.colormap}>
+          <MeshDiscardMaterial/>
+        </mesh>
       </RigidBody>
       <Suspension
         topRef={wheelSuspensions.br_t}
@@ -157,14 +159,16 @@ export function VehicleRacerLow(props: JSX.IntrinsicElements['group']) {
       />
       <RigidBody
         ref={wheelRefs.br}
-        colliders="ball"
+        colliders="trimesh"
         collisionGroups={interactionGroups([4], [1])}
         position={[0.237, 0.125, 0.25]}
         rotation={[0, 0, 0]}
         restitution={WHEEL_RESTITUTION}
         friction={WHEEL_FRICTION}
       >
-        <mesh geometry={nodes['wheel-br'].geometry} material={materials.colormap}/>
+        <mesh geometry={nodes['wheel-br'].geometry} material={materials.colormap}>
+          <MeshDiscardMaterial/>
+        </mesh>
       </RigidBody>
       <Suspension
         topRef={wheelSuspensions.bl_t}
@@ -173,14 +177,16 @@ export function VehicleRacerLow(props: JSX.IntrinsicElements['group']) {
       />
       <RigidBody
         ref={wheelRefs.bl}
-        colliders="ball"
+        colliders="trimesh"
         collisionGroups={interactionGroups([4], [1])}
         position={[-0.188, 0.125, 0.25]}
         rotation={[0, 0, 0]}
         restitution={WHEEL_RESTITUTION}
         friction={WHEEL_FRICTION}
       >
-        <mesh geometry={nodes['wheel-bl'].geometry} material={materials.colormap}/>
+        <mesh geometry={nodes['wheel-bl'].geometry} material={materials.colormap}>
+          <MeshDiscardMaterial/>
+        </mesh>
       </RigidBody>
       <Suspension
         topRef={wheelSuspensions.fl_t}
@@ -190,14 +196,16 @@ export function VehicleRacerLow(props: JSX.IntrinsicElements['group']) {
       />
       <RigidBody
         ref={wheelRefs.fl}
-        colliders="ball"
+        colliders="trimesh"
         collisionGroups={interactionGroups([4], [1])}
         position={[-0.188, 0.125, -0.25]}
         rotation={[0, 0, 0]}
         restitution={WHEEL_RESTITUTION}
         friction={WHEEL_FRICTION}
       >
-        <mesh geometry={nodes['wheel-fl'].geometry} material={materials.colormap}/>
+        <mesh geometry={nodes['wheel-fl'].geometry} material={materials.colormap}>
+          <MeshDiscardMaterial/>
+        </mesh>
       </RigidBody>
     </group>
   )
