@@ -4,11 +4,11 @@ Command: npx gltfjsx@6.5.3 .\vehicle-racer-low.glb -c -t
 */
 
 import * as THREE from "three"
-import {Quaternion} from "three"
+import {Quaternion, Vector3} from "three"
 import {useGLTF, useKeyboardControls} from "@react-three/drei"
 import {GLTF} from "three-stdlib"
 import {interactionGroups, RapierRigidBody, RigidBody, useFixedJoint, useRevoluteJoint} from "@react-three/rapier";
-import {useRef} from "react";
+import {MutableRefObject, useRef} from "react";
 import Suspension from "./Suspension.tsx";
 import {useFrame, useThree} from "@react-three/fiber";
 
@@ -26,7 +26,10 @@ type GLTFResult = GLTF & {
 }
 
 const IMPULSE_SCALE = 0.4;
-const TORQUE_SCALE = 0.1;
+const TORQUE_SCALE = 0.05;
+
+const WHEEL_FRICTION = 10;
+const WHEEL_RESTITUTION = 0.1;
 
 export function VehicleRacerLow(props: JSX.IntrinsicElements['group']) {
   const {nodes, materials} = useGLTF('/models/toy_card_kit/vehicle-racer-low.glb') as GLTFResult
@@ -53,18 +56,14 @@ export function VehicleRacerLow(props: JSX.IntrinsicElements['group']) {
   // fr
   useRevoluteJoint(wheelSuspensions.fr_b, wheelRefs.fr, [[0, 0, 0], [0, 0, 0], [1, 0, 0]]);
   useFixedJoint(bodyRef, wheelSuspensions.fr_t, [[0.237, 0.125, -0.25], quaternion, [0, 0, 0], quaternion]);
-  useFixedJoint(bodyRef, wheelSuspensions.fr_t, [[0.237, 0.125, -0.25], quaternion, [0, 0, 0], quaternion]);
   // br
   useRevoluteJoint(wheelSuspensions.br_b, wheelRefs.br, [[0, 0, 0], [0, 0, 0], [1, 0, 0]]);
-  useFixedJoint(bodyRef, wheelSuspensions.br_t, [[0.237, 0.125, 0.25], quaternion, [0, 0, 0], quaternion]);
   useFixedJoint(bodyRef, wheelSuspensions.br_t, [[0.237, 0.125, 0.25], quaternion, [0, 0, 0], quaternion]);
   // bl
   useRevoluteJoint(wheelSuspensions.bl_b, wheelRefs.bl, [[0, 0, 0], [0, 0, 0], [1, 0, 0]]);
   useFixedJoint(bodyRef, wheelSuspensions.bl_t, [[-0.188, 0.125, 0.25], quaternion, [0, 0, 0], quaternion]);
-  useFixedJoint(bodyRef, wheelSuspensions.bl_t, [[-0.188, 0.125, 0.25], quaternion, [0, 0, 0], quaternion]);
   // fl
   useRevoluteJoint(wheelSuspensions.fl_b, wheelRefs.fl, [[0, 0, 0], [0, 0, 0], [1, 0, 0]]);
-  useFixedJoint(bodyRef, wheelSuspensions.fl_t, [[-0.188, 0.125, -0.25], quaternion, [0, 0, 0], quaternion]);
   useFixedJoint(bodyRef, wheelSuspensions.fl_t, [[-0.188, 0.125, -0.25], quaternion, [0, 0, 0], quaternion]);
 
   const state = useThree();
@@ -74,13 +73,29 @@ export function VehicleRacerLow(props: JSX.IntrinsicElements['group']) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_subscribeKeys, getKeys] = useKeyboardControls();
 
+  // 将局部坐标轴的旋转力转换为世界坐标系中的旋转力
+  const applyLocalTorqueImpulse = (rigidBodyRef: MutableRefObject<RapierRigidBody | null>, localTorque: Vector3) => {
+    if (!rigidBodyRef.current) {
+      return;
+    }
+    const worldTorque = localTorque.clone().applyQuaternion(rigidBodyRef.current.rotation());
+    rigidBodyRef.current.applyTorqueImpulse(worldTorque, true);
+  };
+  // 将局部坐标轴的力转换为世界坐标系中的力
+  // const applyLocalForceImpulse = (rigidBodyRef: MutableRefObject<RapierRigidBody | null>, localForce: Vector3) => {
+  //   if (!rigidBodyRef.current) {
+  //     return;
+  //   }
+  //   const worldForce = localForce.clone().applyQuaternion(rigidBodyRef.current.rotation());
+  //   rigidBodyRef.current.applyImpulse(worldForce, true);
+  // };
   const movePlayer = (delta: number) => {
     if (!bodyRef.current) {
       return;
     }
-    const {forward, backward, left, right} = getKeys();
-    const impulse = {x: 0, y: 0, z: 0};
-    const torque = {x: 0, y: 0, z: 0};
+    const {forward, backward, left, right, brake} = getKeys();
+    const impulse: Vector3 = new Vector3();
+    const torque: Vector3 = new Vector3();
     const impulseStrength = IMPULSE_SCALE * delta;
     const torqueStrength = TORQUE_SCALE * delta;
     if (forward) {
@@ -99,8 +114,14 @@ export function VehicleRacerLow(props: JSX.IntrinsicElements['group']) {
       impulse.x += impulseStrength;
       torque.z -= torqueStrength;
     }
-    bodyRef.current.applyImpulse(impulse, true);
-    bodyRef.current.applyTorqueImpulse(torque, true);
+    if (brake) {
+      impulse.y -= impulseStrength * 2;
+    }
+    // bodyRef.current.applyImpulse(impulse, true);
+    // applyLocalForceImpulse(wheelRefs.bl, impulse);
+    // applyLocalForceImpulse(wheelRefs.br, impulse);
+    applyLocalTorqueImpulse(wheelRefs.bl, torque);
+    applyLocalTorqueImpulse(wheelRefs.br, torque);
   };
 
   useFrame((_state, delta) => {
@@ -109,19 +130,23 @@ export function VehicleRacerLow(props: JSX.IntrinsicElements['group']) {
 
   return (
     <group {...props} dispose={null}>
-      <RigidBody ref={bodyRef} colliders="hull" collisionGroups={interactionGroups([3], [1])} position={[0, 0, 0]}>
+      <RigidBody ref={bodyRef} colliders="hull" collisionGroups={interactionGroups([3], [1])} position={[0, 0, 0]} rotation={[Math.PI * 0.5, 0, 0]}>
         <mesh geometry={nodes['vehicle-racer-low_1'].geometry} material={materials.colormap}/>
       </RigidBody>
       <Suspension
         topRef={wheelSuspensions.fr_t}
         bottomRef={wheelSuspensions.fr_b}
         position={[0.237, 0.125 - (0.3 * 0.5), -0.25]}
+        isFront={true}
       />
       <RigidBody
         ref={wheelRefs.fr}
-        colliders="trimesh"
+        colliders="ball"
         collisionGroups={interactionGroups([4], [1])}
         position={[0.237, 0.125, -0.25]}
+        rotation={[0, 0, 0]}
+        restitution={WHEEL_RESTITUTION}
+        friction={WHEEL_FRICTION}
       >
         <mesh geometry={nodes['wheel-fr'].geometry} material={materials.colormap}/>
       </RigidBody>
@@ -132,9 +157,12 @@ export function VehicleRacerLow(props: JSX.IntrinsicElements['group']) {
       />
       <RigidBody
         ref={wheelRefs.br}
-        colliders="trimesh"
+        colliders="ball"
         collisionGroups={interactionGroups([4], [1])}
         position={[0.237, 0.125, 0.25]}
+        rotation={[0, 0, 0]}
+        restitution={WHEEL_RESTITUTION}
+        friction={WHEEL_FRICTION}
       >
         <mesh geometry={nodes['wheel-br'].geometry} material={materials.colormap}/>
       </RigidBody>
@@ -145,9 +173,12 @@ export function VehicleRacerLow(props: JSX.IntrinsicElements['group']) {
       />
       <RigidBody
         ref={wheelRefs.bl}
-        colliders="trimesh"
+        colliders="ball"
         collisionGroups={interactionGroups([4], [1])}
         position={[-0.188, 0.125, 0.25]}
+        rotation={[0, 0, 0]}
+        restitution={WHEEL_RESTITUTION}
+        friction={WHEEL_FRICTION}
       >
         <mesh geometry={nodes['wheel-bl'].geometry} material={materials.colormap}/>
       </RigidBody>
@@ -155,12 +186,16 @@ export function VehicleRacerLow(props: JSX.IntrinsicElements['group']) {
         topRef={wheelSuspensions.fl_t}
         bottomRef={wheelSuspensions.fl_b}
         position={[-0.188, 0.125 - (0.3 * 0.5), -0.25]}
+        isFront={true}
       />
       <RigidBody
         ref={wheelRefs.fl}
-        colliders="trimesh"
+        colliders="ball"
         collisionGroups={interactionGroups([4], [1])}
         position={[-0.188, 0.125, -0.25]}
+        rotation={[0, 0, 0]}
+        restitution={WHEEL_RESTITUTION}
+        friction={WHEEL_FRICTION}
       >
         <mesh geometry={nodes['wheel-fl'].geometry} material={materials.colormap}/>
       </RigidBody>
