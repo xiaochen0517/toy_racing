@@ -11,6 +11,7 @@
     "deploy": "vite build && gh-pages -d dist"
   },
   "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.14.0",
     "@react-three/drei": "^9.115.0",
     "@react-three/fiber": "^8.17.10",
     "@react-three/postprocessing": "^2.16.3",

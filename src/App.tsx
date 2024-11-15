@@ -1,10 +1,11 @@
 import {Canvas} from "@react-three/fiber";
-import {Box, KeyboardControls, MeshDiscardMaterial, OrbitControls} from "@react-three/drei";
+import {Box, KeyboardControls, OrbitControls} from "@react-three/drei";
 import {Suspense} from "react";
 import LoadingScene from "./scenes/base/LoadingScene.tsx";
 import {Physics, RigidBody} from "@react-three/rapier";
 import {Perf} from "r3f-perf";
-import TestSuspension from "./components/vehicles/TestSuspension.tsx";
+import {VehicleRacerLow} from "./components/vehicles/VehicleRacerLow.tsx";
+import Lights from "./components/environment/Lights.tsx";
 
 export default function App() {
 
@@ -22,20 +23,16 @@ export default function App() {
         <Canvas className="w-full h-full touch-none" shadows={true}>
           <Suspense fallback={<LoadingScene/>}>
             <Perf position="top-left"/>
+            <axesHelper args={[5]}/>
             <OrbitControls/>
             <color attach="background" args={["#202020"]}/>
-            <ambientLight intensity={0.5}/>
-            <directionalLight intensity={1} position={[0, 5, 5]} castShadow/>
+            <Lights/>
             <Physics debug={true}>
-              <TestSuspension/>
-              {/*<VehicleRacerLow position={[0, 0.5, 0]}/>*/}
+              <VehicleRacerLow position={[0, 0.5, 0]}/>
               <RigidBody type="fixed" restitution={0.2} friction={1}>
                 <Box args={[50, 0.4, 50]} position={[0, -0.2, 0]} receiveShadow>
-                  <MeshDiscardMaterial/>
+                  <meshStandardMaterial color="skyblue" metalness={0.3} roughness={0.8}/>
                 </Box>
-                {/*<Box args={[2, 0.4, 2]} position={[0, -0.5, -2]} rotation={[Math.PI * 0.2, 0, 0]} receiveShadow>*/}
-                {/*  <MeshDiscardMaterial/>*/}
-                {/*</Box>*/}
               </RigidBody>
             </Physics>
           </Suspense>

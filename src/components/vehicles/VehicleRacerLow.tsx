@@ -4,13 +4,15 @@ Command: npx gltfjsx@6.5.3 .\vehicle-racer-low.glb -c -t
 */
 
 import * as THREE from "three"
-import {Quaternion, Vector3} from "three"
-import {MeshDiscardMaterial, useGLTF, useKeyboardControls} from "@react-three/drei"
+import {Vector3} from "three"
+import {useGLTF, useKeyboardControls} from "@react-three/drei"
 import {GLTF} from "three-stdlib"
-import {interactionGroups, RapierRigidBody, RigidBody, useFixedJoint, useRevoluteJoint} from "@react-three/rapier";
-import {MutableRefObject, useRef} from "react";
-import Suspension from "./Suspension.tsx";
+import {RapierRigidBody, RigidBody, TrimeshCollider, useRapier} from "@react-three/rapier";
+import {RefObject, useEffect, useRef, useState} from "react";
 import {useFrame, useThree} from "@react-three/fiber";
+import {useVehicleController, WheelInfo} from "../../utils/use_vehicle_controller.ts";
+import {Collider} from '@dimforge/rapier3d-compat'
+import {useControls} from "leva";
 
 type GLTFResult = GLTF & {
   nodes: {
@@ -25,186 +27,231 @@ type GLTFResult = GLTF & {
   }
 }
 
-const IMPULSE_SCALE = 0.4;
-const TORQUE_SCALE = 0.05;
+const wheelInfo: Omit<WheelInfo, 'position'> = {
+  // axleCs: new THREE.Vector3(0, 0, -1),
+  axleCs: new THREE.Vector3(1, 0, 0),
+  suspensionRestLength: 0.06,
+  suspensionStiffness: 70,
+  maxSuspensionTravel: 1,
+  radius: 0.125,
+}
 
-const WHEEL_FRICTION = 10;
-const WHEEL_RESTITUTION = 0.1;
+const WHEELS_POSITIONS: Vector3[] = [
+  new Vector3(-0.237, 0.125, -0.25),
+  new Vector3(0.237, 0.125, -0.25),
+  new Vector3(-0.237, 0.125, 0.25),
+  new Vector3(0.237, 0.125, 0.25),
+]
+
+const wheels: WheelInfo[] = [
+  // front
+  {position: WHEELS_POSITIONS[0], ...wheelInfo},
+  {position: WHEELS_POSITIONS[1], ...wheelInfo},
+  // rear
+  {position: WHEELS_POSITIONS[2], ...wheelInfo},
+  {position: WHEELS_POSITIONS[3], ...wheelInfo},
+]
+
+const cameraOffset = new THREE.Vector3(0, 2, 3)
+const cameraTargetOffset = new THREE.Vector3(0, 1, 0)
+
+const _bodyPosition = new THREE.Vector3()
+const _airControlAngVel = new THREE.Vector3()
+const _cameraPosition = new THREE.Vector3()
+const _cameraTarget = new THREE.Vector3()
 
 export function VehicleRacerLow(props: JSX.IntrinsicElements['group']) {
+
   const {nodes, materials} = useGLTF('/models/toy_card_kit/vehicle-racer-low.glb') as GLTFResult
-  const bodyRef = useRef<RapierRigidBody | null>(null);
-  const wheelRefs = {
-    fr: useRef<RapierRigidBody | null>(null),
-    br: useRef<RapierRigidBody | null>(null),
-    bl: useRef<RapierRigidBody | null>(null),
-    fl: useRef<RapierRigidBody | null>(null),
-  };
 
-  const wheelSuspensions = {
-    fr_t: useRef<RapierRigidBody | null>(null),
-    fr_b: useRef<RapierRigidBody | null>(null),
-    br_t: useRef<RapierRigidBody | null>(null),
-    br_b: useRef<RapierRigidBody | null>(null),
-    bl_t: useRef<RapierRigidBody | null>(null),
-    bl_b: useRef<RapierRigidBody | null>(null),
-    fl_t: useRef<RapierRigidBody | null>(null),
-    fl_b: useRef<RapierRigidBody | null>(null),
-  }
-
-  const quaternion = new Quaternion();
-  // fr
-  useRevoluteJoint(wheelSuspensions.fr_b, wheelRefs.fr, [[0, 0, 0], [0, 0, 0], [1, 0, 0]]);
-  useFixedJoint(bodyRef, wheelSuspensions.fr_t, [[0.237, 0.125, -0.25], quaternion, [0, 0, 0], quaternion]);
-  // br
-  useRevoluteJoint(wheelSuspensions.br_b, wheelRefs.br, [[0, 0, 0], [0, 0, 0], [1, 0, 0]]);
-  useFixedJoint(bodyRef, wheelSuspensions.br_t, [[0.237, 0.125, 0.25], quaternion, [0, 0, 0], quaternion]);
-  // bl
-  useRevoluteJoint(wheelSuspensions.bl_b, wheelRefs.bl, [[0, 0, 0], [0, 0, 0], [1, 0, 0]]);
-  useFixedJoint(bodyRef, wheelSuspensions.bl_t, [[-0.188, 0.125, 0.25], quaternion, [0, 0, 0], quaternion]);
-  // fl
-  useRevoluteJoint(wheelSuspensions.fl_b, wheelRefs.fl, [[0, 0, 0], [0, 0, 0], [1, 0, 0]]);
-  useFixedJoint(bodyRef, wheelSuspensions.fl_t, [[-0.188, 0.125, -0.25], quaternion, [0, 0, 0], quaternion]);
-
+  const {world, rapier} = useRapier()
   const state = useThree();
   state.camera.position.set(2, 2, 2);
 
+  const bodyMeshRef = useRef<THREE.Mesh>(null!);
+  const bodyRef = useRef<RapierRigidBody | null>(null);
+  const wheelsRef: RefObject<(THREE.Object3D | null)[]> = useRef([])
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_subscribeKeys, getKeys] = useKeyboardControls();
-
-  // 将局部坐标轴的旋转力转换为世界坐标系中的旋转力
-  const applyLocalTorqueImpulse = (rigidBodyRef: MutableRefObject<RapierRigidBody | null>, localTorque: Vector3) => {
-    if (!rigidBodyRef.current) {
-      return;
+  const [vertices, setVertices] = useState<number[]>([]);
+  const [indices, setIndices] = useState<number[]>([]);
+  useEffect(() => {
+    if (bodyMeshRef.current) {
+      const geometry = bodyMeshRef.current.geometry;
+      setVertices(Array.from(geometry.attributes.position.array));
+      setIndices(Array.from(geometry.index?.array ?? []));
     }
-    const worldTorque = localTorque.clone().applyQuaternion(rigidBodyRef.current.rotation());
-    rigidBodyRef.current.applyTorqueImpulse(worldTorque, true);
-  };
-  // 将局部坐标轴的力转换为世界坐标系中的力
-  // const applyLocalForceImpulse = (rigidBodyRef: MutableRefObject<RapierRigidBody | null>, localForce: Vector3) => {
-  //   if (!rigidBodyRef.current) {
-  //     return;
-  //   }
-  //   const worldForce = localForce.clone().applyQuaternion(rigidBodyRef.current.rotation());
-  //   rigidBodyRef.current.applyImpulse(worldForce, true);
-  // };
+  }, []);
+
+  const {vehicleController} = useVehicleController(bodyRef, wheelsRef as RefObject<THREE.Object3D[]>, wheels)
+
+  const {accelerateForce, brakeForce, steerAngle, cameraTracking} = useControls('vehicle-controller', {
+    accelerateForce: {value: 0.3, min: 0, max: 1},
+    brakeForce: {value: 0.005, min: 0, max: 0.2, step: 0.001},
+    steerAngle: {value: Math.PI / 24, min: 0, max: Math.PI / 12},
+    cameraTracking: {value: true, label: 'Camera Tracking'},
+  })
+
+  const [smoothedCameraPosition] = useState(new THREE.Vector3(0, 10, 30))
+  const [smoothedCameraTarget] = useState(new THREE.Vector3())
+
+  const [, getKeys] = useKeyboardControls();
+
+  const ground = useRef<Collider>()
+
   const movePlayer = (delta: number) => {
-    if (!bodyRef.current) {
+    if (!bodyRef.current || !vehicleController.current) {
       return;
     }
+
+    const time = 1.0 - Math.pow(0.01, delta)
+
+    /* controls */
     const {forward, backward, left, right, brake} = getKeys();
-    const impulse: Vector3 = new Vector3();
-    const torque: Vector3 = new Vector3();
-    const impulseStrength = IMPULSE_SCALE * delta;
-    const torqueStrength = TORQUE_SCALE * delta;
-    if (forward) {
-      impulse.z -= impulseStrength;
-      torque.x -= torqueStrength;
+    const controller = vehicleController.current;
+    if (!controller) {
+      console.error('controller is not ready');
+      return;
     }
-    if (backward) {
-      impulse.z += impulseStrength;
-      torque.x += torqueStrength;
+
+    const engineForce = Number(forward) * accelerateForce - Number(backward) * accelerateForce
+    controller.setWheelEngineForce(2, engineForce)
+    controller.setWheelEngineForce(3, engineForce)
+
+    const wheelBrake = Number(brake) * brakeForce
+    controller.setWheelBrake(0, wheelBrake)
+    controller.setWheelBrake(1, wheelBrake)
+    controller.setWheelBrake(2, wheelBrake)
+    controller.setWheelBrake(3, wheelBrake)
+
+    const currentSteering = controller.wheelSteering(0) || 0
+    const steerDirection = Number(left) - Number(right)
+    const steering = THREE.MathUtils.lerp(currentSteering, steerAngle * steerDirection, 0.5)
+    controller.setWheelSteering(0, steering)
+    controller.setWheelSteering(1, steering)
+
+    const chassisRigidBody = controller.chassis()
+    const ray = new rapier.Ray(chassisRigidBody.translation(), {x: 0, y: -1, z: 0})
+    const rayCastResult = world.castRay(ray, 1, false, undefined, undefined, undefined, chassisRigidBody)
+    // console.log("rayCastResult", rayCastResult)
+    ground.current = rayCastResult ? rayCastResult.collider : undefined;
+
+    // air control
+    if (!ground.current) {
+      const forwardAngVel = Number(forward) - Number(backward)
+      const sideAngVel = Number(left) - Number(right)
+
+      const angVel = _airControlAngVel.set(0, sideAngVel * time, forwardAngVel * time)
+      angVel.applyQuaternion(chassisRigidBody.rotation())
+      angVel.add(chassisRigidBody.angvel())
+      chassisRigidBody.setAngvel(new rapier.Vector3(angVel.x, angVel.y, angVel.z), true)
     }
-    if (left) {
-      impulse.x -= impulseStrength;
-      torque.z += torqueStrength;
+  }
+  const moveCamera = (delta: number) => {
+    if (!bodyRef.current || !vehicleController.current) {
+      return;
     }
-    if (right) {
-      impulse.x += impulseStrength;
-      torque.z -= torqueStrength;
+    /* camera */
+    const controller = vehicleController.current;
+    if (!controller) {
+      console.error('controller is not ready');
+      return;
     }
-    if (brake) {
-      impulse.y -= impulseStrength * 2;
+    const chassisRigidBody = controller.chassis()
+
+    const time = 1.0 - Math.pow(0.01, delta)
+
+    // camera position
+    const cameraPosition = _cameraPosition
+
+    if (ground.current !== undefined && ground.current) {
+      // camera behind chassis
+      cameraPosition.copy(cameraOffset)
+      const bodyWorldMatrix = bodyMeshRef.current.matrixWorld
+      cameraPosition.applyMatrix4(bodyWorldMatrix)
+    } else {
+      // camera behind velocity
+      const velocity = chassisRigidBody.linvel()
+      cameraPosition.copy(velocity)
+      cameraPosition.normalize()
+      cameraPosition.multiplyScalar(-10)
+      cameraPosition.add(chassisRigidBody.translation())
     }
-    // bodyRef.current.applyImpulse(impulse, true);
-    // applyLocalForceImpulse(wheelRefs.bl, impulse);
-    // applyLocalForceImpulse(wheelRefs.br, impulse);
-    applyLocalTorqueImpulse(wheelRefs.bl, torque);
-    applyLocalTorqueImpulse(wheelRefs.br, torque);
+
+    cameraPosition.y = Math.max(cameraPosition.y, (vehicleController.current?.chassis().translation().y ?? 0) + 1)
+
+    smoothedCameraPosition.lerp(cameraPosition, time)
+    state.camera.position.copy(smoothedCameraPosition)
+
+    // camera target
+    const bodyPosition = bodyMeshRef.current.getWorldPosition(_bodyPosition)
+    const cameraTarget = _cameraTarget
+
+    cameraTarget.copy(bodyPosition)
+    cameraTarget.add(cameraTargetOffset)
+    smoothedCameraTarget.lerp(cameraTarget, time)
+
+    state.camera.lookAt(smoothedCameraTarget)
   };
 
   useFrame((_state, delta) => {
     movePlayer(delta);
+    if (cameraTracking) {
+      moveCamera(delta);
+    }
   });
 
   return (
     <group {...props} dispose={null}>
-      <RigidBody ref={bodyRef} colliders="hull" collisionGroups={interactionGroups([3], [1])} position={[0, 0, 0]}>
-        <mesh geometry={nodes['vehicle-racer-low_1'].geometry} material={materials.colormap}/>
-      </RigidBody>
-      <Suspension
-        topRef={wheelSuspensions.fr_t}
-        bottomRef={wheelSuspensions.fr_b}
-        position={[0.237, 0.125 - (0.3 * 0.5), -0.25]}
-        isFront={true}
-      />
-      <RigidBody
-        ref={wheelRefs.fr}
-        colliders="trimesh"
-        collisionGroups={interactionGroups([4], [1])}
-        position={[0.237, 0.125, -0.25]}
-        rotation={[0, 0, 0]}
-        restitution={WHEEL_RESTITUTION}
-        friction={WHEEL_FRICTION}
-      >
-        <mesh geometry={nodes['wheel-fr'].geometry} material={materials.colormap}>
-          <MeshDiscardMaterial/>
+      <RigidBody ref={bodyRef} canSleep={false} colliders={false} type="dynamic">
+        {/*<CuboidCollider args={[0.25, 0.14, 0.43]} position={[0, 0.23, 0]}/>*/}
+        <mesh
+          ref={bodyMeshRef}
+          castShadow={true}
+          geometry={nodes['vehicle-racer-low_1'].geometry}
+          material={materials.colormap}
+        />
+        {vertices.length > 0 && indices.length > 0 && (
+          <TrimeshCollider args={[vertices, indices]} mass={0.15}/>
+        )}
+        <mesh
+          ref={(ref) => {
+            if (wheelsRef.current) wheelsRef.current[0] = ref
+          }}
+          castShadow={true}
+          geometry={nodes['wheel-fl'].geometry}
+          material={materials.colormap}
+          position={WHEELS_POSITIONS[0]}
+        >
         </mesh>
-      </RigidBody>
-      <Suspension
-        topRef={wheelSuspensions.br_t}
-        bottomRef={wheelSuspensions.br_b}
-        position={[0.237, 0.125 - (0.3 * 0.5), 0.25]}
-      />
-      <RigidBody
-        ref={wheelRefs.br}
-        colliders="trimesh"
-        collisionGroups={interactionGroups([4], [1])}
-        position={[0.237, 0.125, 0.25]}
-        rotation={[0, 0, 0]}
-        restitution={WHEEL_RESTITUTION}
-        friction={WHEEL_FRICTION}
-      >
-        <mesh geometry={nodes['wheel-br'].geometry} material={materials.colormap}>
-          <MeshDiscardMaterial/>
+        <mesh
+          ref={(ref) => {
+            if (wheelsRef.current) wheelsRef.current[1] = ref
+          }}
+          castShadow={true}
+          geometry={nodes['wheel-fr'].geometry}
+          material={materials.colormap}
+          position={WHEELS_POSITIONS[1]}
+        >
         </mesh>
-      </RigidBody>
-      <Suspension
-        topRef={wheelSuspensions.bl_t}
-        bottomRef={wheelSuspensions.bl_b}
-        position={[-0.188, 0.125 - (0.3 * 0.5), 0.25]}
-      />
-      <RigidBody
-        ref={wheelRefs.bl}
-        colliders="trimesh"
-        collisionGroups={interactionGroups([4], [1])}
-        position={[-0.188, 0.125, 0.25]}
-        rotation={[0, 0, 0]}
-        restitution={WHEEL_RESTITUTION}
-        friction={WHEEL_FRICTION}
-      >
-        <mesh geometry={nodes['wheel-bl'].geometry} material={materials.colormap}>
-          <MeshDiscardMaterial/>
+        <mesh
+          ref={(ref) => {
+            if (wheelsRef.current) wheelsRef.current[2] = ref
+          }}
+          castShadow={true}
+          geometry={nodes['wheel-bl'].geometry}
+          material={materials.colormap}
+          position={WHEELS_POSITIONS[2]}
+        >
         </mesh>
-      </RigidBody>
-      <Suspension
-        topRef={wheelSuspensions.fl_t}
-        bottomRef={wheelSuspensions.fl_b}
-        position={[-0.188, 0.125 - (0.3 * 0.5), -0.25]}
-        isFront={true}
-      />
-      <RigidBody
-        ref={wheelRefs.fl}
-        colliders="trimesh"
-        collisionGroups={interactionGroups([4], [1])}
-        position={[-0.188, 0.125, -0.25]}
-        rotation={[0, 0, 0]}
-        restitution={WHEEL_RESTITUTION}
-        friction={WHEEL_FRICTION}
-      >
-        <mesh geometry={nodes['wheel-fl'].geometry} material={materials.colormap}>
-          <MeshDiscardMaterial/>
+        <mesh
+          ref={(ref) => {
+            if (wheelsRef.current) wheelsRef.current[3] = ref
+          }}
+          castShadow={true}
+          geometry={nodes['wheel-br'].geometry}
+          material={materials.colormap}
+          position={WHEELS_POSITIONS[3]}
+        >
         </mesh>
       </RigidBody>
     </group>
