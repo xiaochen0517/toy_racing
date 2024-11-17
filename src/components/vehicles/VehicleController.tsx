@@ -28,6 +28,7 @@ export type VehicleControllerProps = {
   cameraTracking?: boolean
   cameraOffset?: Vector3
   cameraTargetOffset?: Vector3
+  showcase?: boolean
 }
 
 export function VehicleController(props: VehicleControllerProps) {
@@ -168,6 +169,9 @@ export function VehicleController(props: VehicleControllerProps) {
   };
 
   useFrame((_state, delta) => {
+    if (props.showcase) {
+      return;
+    }
     movePlayer(delta);
     if (cameraTracking) {
       moveCamera(delta);
@@ -176,7 +180,7 @@ export function VehicleController(props: VehicleControllerProps) {
 
   return (
     <group {...props} dispose={null}>
-      <RigidBody ref={bodyRef} canSleep={false} colliders={false} type="dynamic">
+      <RigidBody ref={bodyRef} canSleep={false} colliders={false} type={!props.showcase ? "dynamic" : "fixed"}>
         {vertices.length > 0 && indices.length > 0 && (
           <TrimeshCollider args={[vertices, indices]} mass={0.15}/>
         )}

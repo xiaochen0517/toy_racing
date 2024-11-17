@@ -1,10 +1,10 @@
 import * as THREE from "three"
 import {Vector3} from "three"
-import {useGLTF} from "@react-three/drei"
+import {Plane, useGLTF} from "@react-three/drei"
 import {GLTF} from "three-stdlib"
 import {VehicleController} from "./VehicleController.tsx";
 import {WheelInfo} from "../../utils/use_vehicle_controller.ts";
-import {useThree} from "@react-three/fiber";
+import {VehicleComponentProps} from "@/components/vehicles/VehicleModelShowcase.tsx";
 
 type GLTFResult = GLTF & {
   nodes: {
@@ -33,15 +33,12 @@ const WHEELS_POSITIONS: Vector3[] = [
   new Vector3(0.237, 0.125, 0.25),
 ]
 
-export function VehicleRacerLow(props: JSX.IntrinsicElements['group']) {
+export function VehicleRacerLow(props: VehicleComponentProps) {
 
   const {nodes, materials} = useGLTF('/models/toy_card_kit/vehicle-racer-low.glb') as GLTFResult
 
-  const state = useThree();
-  state.camera.position.set(2, 2, 2);
-
   return (
-    <group {...props} dispose={null}>
+    <group ref={props.modelRef} position={props.position} rotation={props.rotation} dispose={null}>
       <VehicleController
         vehicleBodyMesh={(
           <mesh
@@ -83,7 +80,12 @@ export function VehicleRacerLow(props: JSX.IntrinsicElements['group']) {
         cameraTracking={true}
         cameraOffset={new THREE.Vector3(0, 1, 2)}
         cameraTargetOffset={new THREE.Vector3(0, 1, 0)}
+        showcase={props.showcase}
       />
+
+      <Plane args={[2, 2]} rotation-x={-Math.PI / 2} receiveShadow>
+        <shadowMaterial attach="material" color="#000000" opacity={0.3}/>
+      </Plane>
     </group>
   )
 }
