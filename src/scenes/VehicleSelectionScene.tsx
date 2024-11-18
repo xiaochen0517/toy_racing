@@ -52,9 +52,10 @@ export default function VehicleSelectionScene() {
               <BaseButton onClick={() => setCurrentScene("mapSelectionScene")}>
                 Start
               </BaseButton>
-              <BaseButton>
-                Customize
-              </BaseButton>
+              <div className="flex-1"/>
+              {/*<BaseButton>*/}
+              {/*  Customize*/}
+              {/*</BaseButton>*/}
               <BaseButton type={ButtonType.WARNING} onClick={() => setCurrentScene("startScene")}>
                 Back
               </BaseButton>
