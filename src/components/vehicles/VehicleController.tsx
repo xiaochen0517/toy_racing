@@ -4,7 +4,7 @@ import {useKeyboardControls} from "@react-three/drei"
 import {RapierRigidBody, RigidBody, TrimeshCollider, useRapier} from "@react-three/rapier";
 import {cloneElement, ReactElement, RefObject, useEffect, useRef, useState} from "react";
 import {useFrame, useThree} from "@react-three/fiber";
-import {useVehicleController, WheelInfo} from "../../utils/use_vehicle_controller.ts";
+import {useVehicleController, WheelInfo} from "@/utils/UseVehicleController.ts";
 import {Collider} from '@dimforge/rapier3d-compat'
 import {useControls} from "leva";
 
@@ -14,8 +14,8 @@ const _airControlAngVel = new THREE.Vector3()
 const _cameraPosition = new THREE.Vector3()
 const _cameraTarget = new THREE.Vector3()
 
-export type WheelBaseInfo = Omit<WheelInfo, "position">;
-export type VehicleControllerProps = {
+type WheelBaseInfo = Omit<WheelInfo, "position">;
+type VehicleControllerProps = {
   position?: [number, number, number]
   rotation?: [number, number, number]
   vehicleBodyMesh: ReactElement<JSX.IntrinsicElements['mesh']>

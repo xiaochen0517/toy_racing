@@ -1,6 +1,6 @@
-import { DynamicRayCastVehicleController } from '@dimforge/rapier3d-compat'
-import { RapierRigidBody, useAfterPhysicsStep, useRapier } from '@react-three/rapier'
-import { RefObject, useEffect, useRef } from 'react'
+import {DynamicRayCastVehicleController} from '@dimforge/rapier3d-compat'
+import {RapierRigidBody, useAfterPhysicsStep, useRapier} from '@react-three/rapier'
+import {RefObject, useEffect, useRef} from 'react'
 import * as THREE from 'three'
 
 const up = new THREE.Vector3(0, 1, 0)
@@ -22,13 +22,13 @@ export const useVehicleController = (
   wheelsRef: RefObject<THREE.Object3D[]>,
   wheelsInfo: WheelInfo[],
 ) => {
-  const { world } = useRapier()
+  const {world} = useRapier()
 
   const vehicleController = useRef<DynamicRayCastVehicleController>()
 
   useEffect(() => {
-    const { current: chassis } = chassisRef
-    const { current: wheels } = wheelsRef
+    const {current: chassis} = chassisRef
+    const {current: wheels} = wheelsRef
 
     if (!chassis || !wheels) return
 
@@ -60,7 +60,7 @@ export const useVehicleController = (
 
     controller.updateVehicle(world.timestep)
 
-    const { current: wheels } = wheelsRef
+    const {current: wheels} = wheelsRef
 
     wheels?.forEach((wheel, index) => {
       const wheelAxleCs = controller.wheelAxleCs(index)!

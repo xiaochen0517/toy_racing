@@ -1,6 +1,6 @@
 import {ReactNode} from "react";
 
-export type StartMenuButtonProps = {
+type StartMenuButtonProps = {
   className?: string;
   onClick?: () => void;
   children: ReactNode;

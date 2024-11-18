@@ -9,7 +9,7 @@ export type VehicleComponentProps = {
   showcase: boolean;
 }
 
-export type VehicleModelShowcaseProps = {
+type VehicleModelShowcaseProps = {
   modelRef: MutableRefObject<Group>;
   position?: [number, number, number];
   rotation?: [number, number, number];

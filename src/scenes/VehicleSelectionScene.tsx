@@ -5,6 +5,9 @@ import {Physics} from "@react-three/rapier";
 import Lights from "@/components/environment/Lights.tsx";
 import {useEffect, useRef, useState} from "react";
 import {Group, OrthographicCamera as OrthographicCameraImpl, Vector3} from "three";
+import BaseButton from "@/components/html/BaseButton.tsx";
+import {setCurrentScene} from "@/stores/ScenesStore.ts";
+import {ButtonType} from "@/components/html/ButtonType.ts";
 
 export default function VehicleSelectionScene() {
 
@@ -45,9 +48,17 @@ export default function VehicleSelectionScene() {
               A small rally car with balanced performance, suitable for various terrains.
             </p>
             <div className="flex-1"/>
-            <button className="w-fit px-2 rounded-md text-xl font-black shadow-md border border-sky-700 text-neutral-100 bg-sky-600 hover:bg-sky-700 hover:border-sky-800 active:bg-sky-800">
-              Start
-            </button>
+            <div className="flex flex-row gap-2">
+              <BaseButton onClick={() => setCurrentScene("mapSelectionScene")}>
+                Start
+              </BaseButton>
+              <BaseButton>
+                Customize
+              </BaseButton>
+              <BaseButton type={ButtonType.WARNING} onClick={() => setCurrentScene("startScene")}>
+                Back
+              </BaseButton>
+            </div>
           </div>
         </div>
       </div>

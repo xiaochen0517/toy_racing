@@ -3,7 +3,7 @@ import {Vector3} from "three"
 import {Plane, useGLTF} from "@react-three/drei"
 import {GLTF} from "three-stdlib"
 import {VehicleController} from "./VehicleController.tsx";
-import {WheelInfo} from "../../utils/use_vehicle_controller.ts";
+import {WheelInfo} from "@/utils/UseVehicleController.ts";
 import {VehicleComponentProps} from "@/components/vehicles/VehicleModelShowcase.tsx";
 
 type GLTFResult = GLTF & {
@@ -83,9 +83,9 @@ export function VehicleRacerLow(props: VehicleComponentProps) {
         showcase={props.showcase}
       />
 
-      <Plane args={[2, 2]} rotation-x={-Math.PI / 2} receiveShadow>
+      {props.showcase ? <Plane args={[2, 2]} rotation-x={-Math.PI / 2} receiveShadow>
         <shadowMaterial attach="material" color="#000000" opacity={0.3}/>
-      </Plane>
+      </Plane> : null}
     </group>
   )
 }
