@@ -20,9 +20,9 @@ type GLTFResult = GLTF & {
 }
 const wheelInfo: Omit<WheelInfo, 'position'> = {
   axleCs: new THREE.Vector3(1, 0, 0),
-  suspensionRestLength: 0.06,
-  suspensionStiffness: 40,
-  maxSuspensionTravel: 1,
+  suspensionRestLength: 0.04,
+  suspensionStiffness: 60,
+  maxSuspensionTravel: 0.5,
   radius: 0.125,
 }
 
@@ -38,7 +38,7 @@ export function VehicleRacerLow(props: VehicleComponentProps) {
   const {nodes, materials} = useGLTF('/models/toy_card_kit/vehicle-racer-low.glb') as GLTFResult
 
   return (
-    <group ref={props.modelRef} position={props.position} rotation={props.rotation} dispose={null}>
+    <group ref={props.modelRef} position={props.position} rotation={props.rotation} scale={props.scale} dispose={null}>
       <VehicleController
         vehicleBodyMesh={(
           <mesh
@@ -78,12 +78,12 @@ export function VehicleRacerLow(props: VehicleComponentProps) {
         brakeForce={0.01}
         steerAngle={Math.PI * 0.1}
         cameraTracking={true}
-        cameraOffset={new THREE.Vector3(0, 1, 2)}
-        cameraTargetOffset={new THREE.Vector3(0, 1, 0)}
-        showcase={props.showcase}
+        cameraOffset={new THREE.Vector3(0, 1, 4)}
+        cameraTargetOffset={new THREE.Vector3(0, 0.7, 0)}
+        showcase={props.showcase ?? false}
       />
 
-      {props.showcase ? <Plane args={[2, 2]} rotation-x={-Math.PI / 2} receiveShadow>
+      {props.showcase === true ? <Plane args={[2, 2]} rotation-x={-Math.PI / 2} receiveShadow>
         <shadowMaterial attach="material" color="#000000" opacity={0.3}/>
       </Plane> : null}
     </group>

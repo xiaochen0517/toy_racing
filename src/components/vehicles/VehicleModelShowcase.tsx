@@ -3,10 +3,11 @@ import {MutableRefObject} from "react";
 import {Group} from "three";
 
 export type VehicleComponentProps = {
-  modelRef: MutableRefObject<Group>
+  modelRef?: MutableRefObject<Group>
   position?: [number, number, number];
   rotation?: [number, number, number];
-  showcase: boolean;
+  scale?: [number, number, number];
+  showcase?: boolean;
 }
 
 type VehicleModelShowcaseProps = {
