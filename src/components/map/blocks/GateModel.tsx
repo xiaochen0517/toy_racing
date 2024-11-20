@@ -23,7 +23,7 @@ export function GateModel(props: JSX.IntrinsicElements['group']) {
   return (
     <group {...props} dispose={null}>
       <RigidBody type="fixed" colliders="trimesh" scale={GATE_MODEL_SCALE} position={[0, -0.2, 0]}>
-        <mesh geometry={nodes.gate_1.geometry} material={materials.colormap}/>
+        <mesh geometry={nodes.gate_1.geometry} material={materials.colormap} castShadow={true} receiveShadow={true}/>
       </RigidBody>
     </group>
   )

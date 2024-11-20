@@ -9,11 +9,13 @@ export default function Lights() {
   return <>
     <ambientLight intensity={0.5}/>
     <directionalLight
-      intensity={1} position={[5, 5, 5]} castShadow={true}
-      shadow-mapSize-width={2048} // 增加阴影贴图的分辨率
+      intensity={1} position={[20, 20, 20]}
+      castShadow={true}
+      shadow-mapSize-width={2048}
       shadow-mapSize-height={2048}
+      shadow-normalBias={0.02}
     >
-      <orthographicCamera ref={directionalLightCameraRef} attach="shadow-camera" args={[-10, 10, 10, -10, 0.5, 20]}/>
+      <orthographicCamera ref={directionalLightCameraRef} attach="shadow-camera" args={[-15, 15, 15, -15, 10, 50]}/>
     </directionalLight>
   </>
 }
