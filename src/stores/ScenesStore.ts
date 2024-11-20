@@ -18,7 +18,7 @@ export type ScenesStoreType = {
 }
 
 export const sceneStore = proxy<ScenesStoreType>({
-  currentScene: "startScene"
+  currentScene: "gameMapScene"
 })
 
 export const setCurrentScene = (scene: keyof typeof Scenes) => {

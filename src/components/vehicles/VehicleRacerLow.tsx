@@ -21,7 +21,7 @@ type GLTFResult = GLTF & {
 const wheelInfo: Omit<WheelInfo, 'position'> = {
   axleCs: new THREE.Vector3(1, 0, 0),
   suspensionRestLength: 0.04,
-  suspensionStiffness: 60,
+  suspensionStiffness: 90,
   maxSuspensionTravel: 0.5,
   radius: 0.125,
 }
@@ -74,9 +74,9 @@ export function VehicleRacerLow(props: VehicleComponentProps) {
         ]}
         wheelPositions={WHEELS_POSITIONS}
         wheelBaseInfo={wheelInfo}
-        accelerateForce={0.3}
-        brakeForce={0.01}
-        steerAngle={Math.PI * 0.1}
+        accelerateForce={0.15}
+        brakeForce={0.005}
+        steerAngle={Math.PI * 0.02}
         cameraTracking={true}
         cameraOffset={new THREE.Vector3(0, 1, 4)}
         cameraTargetOffset={new THREE.Vector3(0, 0.7, 0)}

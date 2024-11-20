@@ -1,7 +1,7 @@
 import * as THREE from "three"
 import {Vector3} from "three"
 import {useKeyboardControls} from "@react-three/drei"
-import {RapierRigidBody, RigidBody, TrimeshCollider, useRapier} from "@react-three/rapier";
+import {ConvexHullCollider, RapierRigidBody, RigidBody, useRapier} from "@react-three/rapier";
 import {cloneElement, ReactElement, RefObject, useEffect, useRef, useState} from "react";
 import {useFrame, useThree} from "@react-three/fiber";
 import {useVehicleController, WheelInfo} from "@/utils/UseVehicleController.ts";
@@ -182,7 +182,7 @@ export function VehicleController(props: VehicleControllerProps) {
     <group {...props} dispose={null}>
       <RigidBody ref={bodyRef} canSleep={false} colliders={false} type={!props.showcase ? "dynamic" : "fixed"}>
         {vertices.length > 0 && indices.length > 0 && (
-          <TrimeshCollider args={[vertices, indices]} mass={0.15}/>
+          <ConvexHullCollider args={[vertices]} mass={0.15}/>
         )}
 
         {cloneElement(props.vehicleBodyMesh, {ref: bodyMeshRef})}

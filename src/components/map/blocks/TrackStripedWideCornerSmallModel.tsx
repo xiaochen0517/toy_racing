@@ -7,6 +7,7 @@ import * as THREE from 'three'
 import {useGLTF} from '@react-three/drei'
 import {GLTF} from 'three-stdlib'
 import {RigidBody} from "@react-three/rapier";
+import {TRACK_FRICTION, TRACK_MODEL_SCALE, TRACK_RESTITUTION} from "@/components/map/blocks/TrackModelConfig.ts";
 
 type GLTFResult = GLTF & {
   nodes: {
@@ -21,7 +22,7 @@ export function TrackStripedWideCornerSmallModel(props: JSX.IntrinsicElements['g
   const {nodes, materials} = useGLTF('/models/toy_card_kit/track-striped-wide-corner-small.glb') as GLTFResult
   return (
     <group {...props} dispose={null}>
-      <RigidBody type="fixed" colliders="trimesh">
+      <RigidBody type="fixed" colliders="trimesh" scale={TRACK_MODEL_SCALE} restitution={TRACK_RESTITUTION} friction={TRACK_FRICTION}>
         <mesh
           geometry={nodes['track-striped-wide-corner-small_1'].geometry}
           material={materials.colormap}
