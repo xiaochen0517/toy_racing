@@ -1,5 +1,5 @@
 import * as THREE from "three"
-import {Vector3} from "three"
+import {MathUtils, Mesh, Object3D, Vector3} from "three"
 import {useKeyboardControls} from "@react-three/drei"
 import {ConvexHullCollider, RapierRigidBody, RigidBody, useRapier} from "@react-three/rapier";
 import {cloneElement, ReactElement, RefObject, useEffect, useRef, useState} from "react";
@@ -7,6 +7,7 @@ import {useFrame, useThree} from "@react-three/fiber";
 import {useVehicleController, WheelInfo} from "@/utils/UseVehicleController.ts";
 import {Collider} from '@dimforge/rapier3d-compat'
 import {useControls} from "leva";
+import {VehicleUtil} from "@/utils/VehicleUtil.ts";
 
 
 const _bodyPosition = new THREE.Vector3()
@@ -41,19 +42,19 @@ export function VehicleController(props: VehicleControllerProps) {
     cameraTracking: {value: props.cameraTracking ?? true, label: 'Camera Tracking'},
   }, {collapsed: true})
 
-  const wheels: WheelInfo[] = []
+  const wheels: WheelInfo[] = [];
   for (const wheelPosition of props.wheelPositions) {
-    wheels.push({...props.wheelBaseInfo, position: wheelPosition})
+    wheels.push({...props.wheelBaseInfo, position: wheelPosition});
   }
-  const cameraOffset = props.cameraOffset ?? new THREE.Vector3(0, 2, 3)
-  const cameraTargetOffset = props.cameraTargetOffset ?? new THREE.Vector3(0, 1, 0)
+  const cameraOffset = props.cameraOffset ?? new Vector3(0, 2, 3);
+  const cameraTargetOffset = props.cameraTargetOffset ?? new Vector3(0, 1, 0);
 
-  const {world, rapier} = useRapier()
+  const {world, rapier} = useRapier();
   const state = useThree();
 
-  const bodyMeshRef = useRef<THREE.Mesh>(null!);
+  const bodyMeshRef = useRef<Mesh>(null!);
   const bodyRef = useRef<RapierRigidBody | null>(null);
-  const wheelsRef: RefObject<(THREE.Object3D | null)[]> = useRef([])
+  const wheelsRef: RefObject<(Object3D | null)[]> = useRef([]);
 
   const [vertices, setVertices] = useState<number[]>([]);
   const [indices, setIndices] = useState<number[]>([]);
@@ -65,22 +66,19 @@ export function VehicleController(props: VehicleControllerProps) {
     }
   }, []);
 
-  const {vehicleController} = useVehicleController(bodyRef, wheelsRef as RefObject<THREE.Object3D[]>, wheels)
+  const {vehicleController} = useVehicleController(bodyRef, wheelsRef as RefObject<Object3D[]>, wheels);
 
-  const [smoothedCameraPosition] = useState(new THREE.Vector3(0, 10, 30))
-  const [smoothedCameraTarget] = useState(new THREE.Vector3())
+  const [smoothedCameraPosition] = useState(new Vector3(0, 10, 30));
+  const [smoothedCameraTarget] = useState(new Vector3());
 
   const [, getKeys] = useKeyboardControls();
-
   const ground = useRef<Collider>()
 
   const movePlayer = (delta: number) => {
     if (!bodyRef.current || !vehicleController.current) {
       return;
     }
-
-    const time = 1.0 - Math.pow(0.01, delta)
-
+    const time = 1.0 - Math.pow(0.01, delta);
     /* controls */
     const {forward, backward, left, right, brake} = getKeys();
     const controller = vehicleController.current;
@@ -89,37 +87,44 @@ export function VehicleController(props: VehicleControllerProps) {
       return;
     }
 
-    const engineForce = Number(forward) * accelerateForce - Number(backward) * accelerateForce;
-    controller.setWheelEngineForce(2, engineForce)
-    controller.setWheelEngineForce(3, engineForce)
-
-    const wheelBrake = Number(brake) * brakeForce
-    // controller.setWheelBrake(0, wheelBrake)
-    // controller.setWheelBrake(1, wheelBrake)
-    controller.setWheelBrake(2, wheelBrake)
-    controller.setWheelBrake(3, wheelBrake)
-
-    const currentSteering = controller.wheelSteering(0) || 0
-    const steerDirection = Number(left) - Number(right)
-    const steering = THREE.MathUtils.lerp(currentSteering, steerAngle * steerDirection, 0.5)
-    controller.setWheelSteering(0, steering)
-    controller.setWheelSteering(1, steering)
-
-    const chassisRigidBody = controller.chassis()
-    const ray = new rapier.Ray(chassisRigidBody.translation(), {x: 0, y: -1, z: 0})
-    const rayCastResult = world.castRay(ray, 1, false, undefined, undefined, undefined, chassisRigidBody)
+    const chassisRigidBody = controller.chassis();
+    const ray = new rapier.Ray(chassisRigidBody.translation(), {x: 0, y: -1, z: 0});
+    const rayCastResult = world.castRay(ray, props.wheelBaseInfo.suspensionRestLength + 0.01, false, undefined, undefined, undefined, chassisRigidBody);
     ground.current = rayCastResult ? rayCastResult.collider : undefined;
 
     // air control
     if (!ground.current) {
-      const forwardAngVel = Number(forward) - Number(backward)
-      const sideAngVel = Number(left) - Number(right)
+      const forwardAngVel = Number(forward) - Number(backward);
+      const sideAngVel = Number(left) - Number(right);
 
-      const angVel = _airControlAngVel.set(0, sideAngVel * time, forwardAngVel * time)
-      angVel.applyQuaternion(chassisRigidBody.rotation())
-      angVel.add(chassisRigidBody.angvel())
-      chassisRigidBody.setAngvel(new rapier.Vector3(angVel.x, angVel.y, angVel.z), true)
+      const angVel = _airControlAngVel.set(forwardAngVel * time, sideAngVel * time, 0);
+      angVel.applyQuaternion(chassisRigidBody.rotation());
+      angVel.add(chassisRigidBody.angvel());
+      chassisRigidBody.setAngvel(new rapier.Vector3(angVel.x, angVel.y, angVel.z), true);
+      return;
     }
+
+    let engineForce = Number(forward) * accelerateForce - Number(backward) * accelerateForce;
+    if (engineForce != 0) {
+      const localVelocity = VehicleUtil.getRigidBodyLocalVelocity(chassisRigidBody);
+      console.log("current velocity", localVelocity.z);
+      engineForce = VehicleUtil.easeOutQuart(engineForce > 0, engineForce, localVelocity.z, 10);
+    }
+
+    controller.setWheelEngineForce(2, engineForce);
+    controller.setWheelEngineForce(3, engineForce);
+
+    const wheelBrake = Number(brake) * brakeForce;
+    // controller.setWheelBrake(0, wheelBrake);
+    // controller.setWheelBrake(1, wheelBrake);
+    controller.setWheelBrake(2, wheelBrake);
+    controller.setWheelBrake(3, wheelBrake);
+
+    const currentSteering = controller.wheelSteering(0) || 0;
+    const steerDirection = Number(left) - Number(right);
+    const steering = MathUtils.lerp(currentSteering, steerAngle * steerDirection, 0.2);
+    controller.setWheelSteering(0, steering);
+    controller.setWheelSteering(1, steering);
   }
   const moveCamera = (delta: number) => {
     if (!bodyRef.current || !vehicleController.current) {
@@ -189,7 +194,7 @@ export function VehicleController(props: VehicleControllerProps) {
         {props.wheelMeshes.map((wheelMesh, index) => {
           return cloneElement(wheelMesh, {
             key: index,
-            ref: (itemRef: THREE.Object3D<THREE.Object3DEventMap> | null) => {
+            ref: (itemRef: Object3D | null) => {
               if (wheelsRef.current) wheelsRef.current[index] = itemRef
             }
           })
