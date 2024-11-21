@@ -35,14 +35,14 @@ export default function TestGround(props: JSX.IntrinsicElements['group']) {
 
   return <group {...props}>
     <InstancedRigidBodies instances={cubesGrayInstances}>
-      <instancedMesh castShadow={true} args={[undefined, undefined, instancesCount]}>
+      <instancedMesh castShadow={true} args={[undefined, undefined, instancesCount]} frustumCulled={false}>
         <boxGeometry/>
         <meshBasicMaterial color={"black"}/>
       </instancedMesh>
     </InstancedRigidBodies>
 
     <InstancedRigidBodies instances={cubesBlackInstances}>
-      <instancedMesh castShadow={true} args={[undefined, undefined, instancesCount]}>
+      <instancedMesh castShadow={true} args={[undefined, undefined, instancesCount]} frustumCulled={false}>
         <boxGeometry/>
         <meshBasicMaterial color={"gray"}/>
       </instancedMesh>
