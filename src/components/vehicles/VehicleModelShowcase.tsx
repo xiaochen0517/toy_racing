@@ -8,6 +8,7 @@ export type VehicleComponentProps = {
   rotation?: [number, number, number];
   scale?: [number, number, number];
   showcase?: boolean;
+  started?: boolean;
 }
 
 type VehicleModelShowcaseProps = {

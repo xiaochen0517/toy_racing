@@ -132,7 +132,7 @@ export function VehicleController(
     let engineForce = Number(forward) * accelerateForce - Number(backward) * accelerateForce;
     if (engineForce != 0) {
       const localVelocity = VehicleUtil.getRigidBodyLocalVelocity(chassisRigidBody);
-      console.log("current velocity", localVelocity.z);
+      // console.log("current velocity", localVelocity.z);
       engineForce = VehicleUtil.easeOutQuart(engineForce > 0, engineForce, localVelocity.z, 10);
     }
     controller.setWheelEngineForce(2, engineForce);

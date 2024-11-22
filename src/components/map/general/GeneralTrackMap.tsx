@@ -3,7 +3,7 @@
  */
 import {OrbitControls, Sky} from "@react-three/drei";
 import {useThree} from "@react-three/fiber";
-import {useEffect, useRef} from "react";
+import {useEffect, useRef, useState} from "react";
 import {OrbitControls as ThreeOrbitControls} from "three/examples/jsm/controls/OrbitControls.js";
 import Lights from "@/components/environment/Lights.tsx";
 import {VehicleRacerLow} from "@/components/vehicles/VehicleRacerLow.tsx";
@@ -24,14 +24,20 @@ export default function GeneralTrackMap() {
     (orbitControlsRef.current as ThreeOrbitControls).target.set(DEBUG_CAMERA_POSITION.x, DEBUG_CAMERA_POSITION.y, DEBUG_CAMERA_POSITION.z);
   }, [camera]);
 
+  const [started, setStarted] = useState<boolean>(false);
+  const handleStart = () => {
+    console.log("Started");
+    setStarted(true);
+  };
+
   return <>
     <Lights/>
     <OrbitControls ref={orbitControlsRef} makeDefault={true}/>
     <Sky sunPosition={[100, 200, 100]}/>
     <GeneralTrackModel/>
 
-    <StartCountDown position={[0, 2, 0]}/>
+    <StartCountDown position={[0, 2, 0]} onStarted={handleStart}/>
 
-    <VehicleRacerLow position={[0, 0.2, 1]} rotation={[0, 0, 0]}/>
+    <VehicleRacerLow position={[0, 0.2, 1]} rotation={[0, 0, 0]} started={started}/>
   </>;
 }

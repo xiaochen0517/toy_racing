@@ -82,6 +82,7 @@ export function VehicleRacerLow(props: VehicleComponentProps) {
         cameraOffset={new THREE.Vector3(0, 1, 4)}
         cameraTargetOffset={new THREE.Vector3(0, 0.7, 0)}
         showcase={props.showcase ?? false}
+        canMove={props.started ?? true}
       />
 
       {props.showcase === true ? <Plane args={[2, 2]} rotation-x={-Math.PI / 2} receiveShadow>
