@@ -8,6 +8,8 @@ type KeyboardControlsState<T extends string = string> = {
   [K in T]: boolean;
 };
 
+export const STEERING_SPEED = 0.1;
+
 export const VehicleUtil = {
   /**
    * vehicle velocity easing function

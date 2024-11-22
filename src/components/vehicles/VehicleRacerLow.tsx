@@ -45,7 +45,8 @@ export function VehicleRacerLow(props: VehicleComponentProps) {
             castShadow={true}
             geometry={nodes['vehicle-racer-low_1'].geometry}
             material={materials.colormap}
-          />)}
+          >
+          </mesh>)}
         wheelMeshes={[
           <mesh
             castShadow={true}
@@ -76,7 +77,7 @@ export function VehicleRacerLow(props: VehicleComponentProps) {
         wheelBaseInfo={wheelInfo}
         accelerateForce={0.3}
         brakeForce={0.01}
-        steerAngle={Math.PI * 0.04}
+        steerAngle={Math.PI * 0.03}
         cameraTracking={true}
         cameraOffset={new THREE.Vector3(0, 1, 4)}
         cameraTargetOffset={new THREE.Vector3(0, 0.7, 0)}

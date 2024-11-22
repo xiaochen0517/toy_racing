@@ -33,7 +33,8 @@ export function TrackStripedWideModel(props: JSX.IntrinsicElements['group']) {
           geometry={nodes['track-striped-wide_1'].geometry} material={materials.colormap}
           castShadow={true}
           receiveShadow={true}
-        />
+        >
+        </mesh>
       </RigidBody>
     </group>
   )

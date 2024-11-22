@@ -1,11 +1,11 @@
-import {MathUtils, Mesh, Object3D, Vector3} from "three"
+import {ArrowHelper, MathUtils, Mesh, Object3D, Vector3} from "three"
 import {useKeyboardControls} from "@react-three/drei"
 import {ConvexHullCollider, RapierRigidBody, RigidBody, useRapier} from "@react-three/rapier";
 import {cloneElement, ReactElement, RefObject, useEffect, useRef, useState} from "react";
 import {useFrame, useThree} from "@react-three/fiber";
 import {useVehicleController, WheelInfo} from "@/utils/UseVehicleController.ts";
 import {Collider, DynamicRayCastVehicleController} from '@dimforge/rapier3d-compat'
-import {VehicleUtil} from "@/utils/VehicleUtil.ts";
+import {STEERING_SPEED, VehicleUtil} from "@/utils/VehicleUtil.ts";
 
 type WheelBaseInfo = Omit<WheelInfo, "position">;
 type VehicleControllerProps = {
@@ -23,6 +23,7 @@ type VehicleControllerProps = {
   cameraTargetOffset?: Vector3
   showcase?: boolean
   canMove?: boolean
+  groundHeight?: number
 }
 
 export function VehicleController(
@@ -40,7 +41,8 @@ export function VehicleController(
     cameraOffset = new Vector3(0, 2, 3),
     cameraTargetOffset = new Vector3(0, 1, 0),
     showcase = false,
-    canMove = true
+    canMove = true,
+    groundHeight = 0.5,
   }: VehicleControllerProps) {
 
   const {world, rapier} = useRapier();
@@ -72,15 +74,39 @@ export function VehicleController(
   const [, getKeys] = useKeyboardControls();
   const ground = useRef<Collider | null>(null);
 
+  const {scene} = useThree();
+  const groundArrowHelperRef = useRef<ArrowHelper | null>(null);
+
   /**
    * 检测车辆是否在地面上
    */
   const groundRayCast = (controller: DynamicRayCastVehicleController) => {
     const chassisRigidBody = controller.chassis();
-    const ray = new rapier.Ray(chassisRigidBody.translation(), {x: 0, y: -1, z: 0});
-    const rayCastResult = world.castRay(
-      ray, wheelBaseInfo.suspensionRestLength + 0.01, false, undefined, undefined, undefined, chassisRigidBody);
-    ground.current = rayCastResult ? rayCastResult.collider : null;
+    const groundRay = new rapier.Ray(chassisRigidBody.translation(), {x: 0, y: -1, z: 0});
+    const groundRayResult = world.castRay(
+      groundRay,
+      groundHeight,
+      true,
+      undefined,
+      undefined,
+      undefined,
+      chassisRigidBody
+    );
+    ground.current = groundRayResult ? groundRayResult.collider : null;
+
+    if (groundArrowHelperRef.current) {
+      groundArrowHelperRef.current.position.copy(VehicleUtil.vector2Vector3(groundRay.origin));
+    } else {
+      groundArrowHelperRef.current = new ArrowHelper(
+        VehicleUtil.vector2Vector3(groundRay.dir),
+        VehicleUtil.vector2Vector3(groundRay.origin),
+        groundHeight,
+        0x00ff00,
+        0.1,
+        0.1
+      );
+      scene.add(groundArrowHelperRef.current);
+    }
   }
 
   /**
@@ -103,18 +129,12 @@ export function VehicleController(
     const {forward, backward, left, right, brake} = getKeys();
 
     const chassisRigidBody = controller.chassis();
-    const ray = new rapier.Ray(chassisRigidBody.translation(), {x: 0, y: -1, z: 0});
-    const rayCastResult = world.castRay(
-      ray, wheelBaseInfo.suspensionRestLength + 0.01, false, undefined, undefined, undefined, chassisRigidBody);
-    ground.current = rayCastResult ? rayCastResult.collider : null;
-
     let engineForce = Number(forward) * accelerateForce - Number(backward) * accelerateForce;
     if (engineForce != 0) {
       const localVelocity = VehicleUtil.getRigidBodyLocalVelocity(chassisRigidBody);
       console.log("current velocity", localVelocity.z);
       engineForce = VehicleUtil.easeOutQuart(engineForce > 0, engineForce, localVelocity.z, 10);
     }
-
     controller.setWheelEngineForce(2, engineForce);
     controller.setWheelEngineForce(3, engineForce);
 
@@ -124,7 +144,7 @@ export function VehicleController(
 
     const currentSteering = controller.wheelSteering(0) || 0;
     const steerDirection = Number(left) - Number(right);
-    const steering = MathUtils.lerp(currentSteering, steerAngle * steerDirection, 0.2);
+    const steering = MathUtils.lerp(currentSteering, steerAngle * steerDirection, STEERING_SPEED);
     controller.setWheelSteering(0, steering);
     controller.setWheelSteering(1, steering);
   }
@@ -133,33 +153,34 @@ export function VehicleController(
    * 镜头跟随车辆
    */
   const moveCamera = (lerpDelta: number, controller: DynamicRayCastVehicleController) => {
-    const chassisRigidBody = controller.chassis()
+    const chassisRigidBody = controller.chassis();
     /* 车辆在地面和空中使用不同的镜头跟随方式 */
     if (ground.current) {
-      // 车辆在地面
-      VehicleUtil.cameraPosition.copy(cameraOffset)
-      const bodyWorldMatrix = bodyMeshRef.current.matrixWorld
-      VehicleUtil.cameraPosition.applyMatrix4(bodyWorldMatrix)
+      // 车辆在地面或翻车
+      VehicleUtil.cameraPosition.copy(cameraOffset);
+      const bodyWorldMatrix = bodyMeshRef.current.matrixWorld;
+      VehicleUtil.cameraPosition.applyMatrix4(bodyWorldMatrix);
     } else {
       // 车辆在空中
-      const velocity = chassisRigidBody.linvel()
-      VehicleUtil.cameraPosition.copy(velocity)
-      VehicleUtil.cameraPosition.normalize()
-      VehicleUtil.cameraPosition.multiplyScalar(-10)
-      VehicleUtil.cameraPosition.add(chassisRigidBody.translation())
+      const velocity = chassisRigidBody.linvel();
+      VehicleUtil.cameraPosition.copy(velocity);
+      VehicleUtil.cameraPosition.normalize();
+      VehicleUtil.cameraPosition.multiplyScalar(-10);
+      VehicleUtil.cameraPosition.add(chassisRigidBody.translation());
     }
     // 防止镜头穿过地面
-    const minCameraY = (vehicleController.current?.chassis().translation().y ?? 0) + 1
-    VehicleUtil.cameraPosition.y = Math.max(VehicleUtil.cameraPosition.y, minCameraY)
+    const minCameraY = (vehicleController.current?.chassis().translation().y ?? 0) + 1;
+    console.log("minCameraY", minCameraY);
+    VehicleUtil.cameraPosition.y = Math.max(VehicleUtil.cameraPosition.y, minCameraY);
     // 镜头平滑移动
-    smoothedCameraPosition.lerp(VehicleUtil.cameraPosition, lerpDelta)
-    state.camera.position.copy(smoothedCameraPosition)
+    smoothedCameraPosition.lerp(VehicleUtil.cameraPosition, lerpDelta);
+    state.camera.position.copy(smoothedCameraPosition);
     // 镜头看向车辆
-    const bodyPosition = bodyMeshRef.current.getWorldPosition(VehicleUtil.bodyPosition)
-    VehicleUtil.cameraTarget.copy(bodyPosition)
-    VehicleUtil.cameraTarget.add(cameraTargetOffset)
-    smoothedCameraTarget.lerp(VehicleUtil.cameraTarget, lerpDelta)
-    state.camera.lookAt(smoothedCameraTarget)
+    const bodyPosition = bodyMeshRef.current.getWorldPosition(VehicleUtil.bodyPosition);
+    VehicleUtil.cameraTarget.copy(bodyPosition);
+    VehicleUtil.cameraTarget.add(cameraTargetOffset);
+    smoothedCameraTarget.lerp(VehicleUtil.cameraTarget, lerpDelta);
+    state.camera.lookAt(smoothedCameraTarget);
   };
 
   useFrame((_state, delta) => {

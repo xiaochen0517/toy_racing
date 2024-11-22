@@ -16,6 +16,8 @@ import {
 import {TrackStripedWideStraightHillEndModel} from "@/components/map/blocks/TrackStripedWideStraightHillEndModel.tsx";
 import {TrackStripedWideCurveModel} from "@/components/map/blocks/TrackStripedWideCurveModel.tsx";
 import {TrackStripedWideCornerSmallModel} from "@/components/map/blocks/TrackStripedWideCornerSmallModel.tsx";
+import Lights from "@/components/environment/Lights.tsx";
+import {VehicleRacerLow} from "@/components/vehicles/VehicleRacerLow.tsx";
 
 const DEBUG_CAMERA_POSITION = {x: -20, y: 0, z: 50};
 
@@ -32,6 +34,7 @@ export default function GeneralTrackMap() {
   }, [camera]);
 
   return <>
+    <Lights/>
     <OrbitControls ref={orbitControlsRef} makeDefault={true}/>
     <Sky sunPosition={[100, 200, 100]}/>
     <GateModel scale={[2, 2, 2]}/>
@@ -76,6 +79,6 @@ export default function GeneralTrackMap() {
       <TrackStripedWideModel key={i} position={[0, 0, (i * 4)]} rotation={[0, 0, 0]}/>
     ))}
 
-    {/*<VehicleRacerLow position={[0, 0.3, 1]}/>*/}
+    <VehicleRacerLow position={[0, 0.2, 1]} rotation={[0, 0, 0]}/>
   </>;
 }
