@@ -1,42 +1,17 @@
-/**
- * GeneralTrackMap
- */
 import {GateModel} from "@/components/map/blocks/GateModel.tsx";
-import {OrbitControls, Sky} from "@react-three/drei";
 import {TrackStripedWideModel} from "@/components/map/blocks/TrackStripedWideModel.tsx";
 import {TrackStripedWideCornerLargeModel} from "@/components/map/blocks/TrackStripedWideCornerLargeModel.tsx";
-import {useThree} from "@react-three/fiber";
-import {useEffect, useRef} from "react";
-import {OrbitControls as ThreeOrbitControls} from "three/examples/jsm/controls/OrbitControls.js";
 import {TrackStripedWideStraightBumpUpModel} from "@/components/map/blocks/TrackStripedWideStraightBumpUpModel.tsx";
 import {TrackStripedWideCornerLargeRampModel} from "@/components/map/blocks/TrackStripedWideCornerLargeRampModel.tsx";
 import {
   TrackStripedWideStraightHillBeginningModel
 } from "@/components/map/blocks/TrackStripedWideStraightHillBeginningModel.tsx";
 import {TrackStripedWideStraightHillEndModel} from "@/components/map/blocks/TrackStripedWideStraightHillEndModel.tsx";
-import {TrackStripedWideCurveModel} from "@/components/map/blocks/TrackStripedWideCurveModel.tsx";
 import {TrackStripedWideCornerSmallModel} from "@/components/map/blocks/TrackStripedWideCornerSmallModel.tsx";
-import Lights from "@/components/environment/Lights.tsx";
-import {VehicleRacerLow} from "@/components/vehicles/VehicleRacerLow.tsx";
+import {TrackStripedWideCurveModel} from "@/components/map/blocks/TrackStripedWideCurveModel.tsx";
 
-const DEBUG_CAMERA_POSITION = {x: -20, y: 0, z: 50};
-
-export default function GeneralTrackMap() {
-
-  const {camera} = useThree();
-
-  const orbitControlsRef = useRef<never>(null!);
-
-  useEffect(() => {
-    camera.position.set(DEBUG_CAMERA_POSITION.x, 70, DEBUG_CAMERA_POSITION.z);
-    // camera.lookAt(0, 0, -40);
-    (orbitControlsRef.current as ThreeOrbitControls).target.set(DEBUG_CAMERA_POSITION.x, DEBUG_CAMERA_POSITION.y, DEBUG_CAMERA_POSITION.z);
-  }, [camera]);
-
-  return <>
-    <Lights/>
-    <OrbitControls ref={orbitControlsRef} makeDefault={true}/>
-    <Sky sunPosition={[100, 200, 100]}/>
+export default function GeneralTrackModel(props: JSX.IntrinsicElements['group']) {
+  return <group {...props}>
     <GateModel scale={[2, 2, 2]}/>
     {[...Array(10)].map((_, i) => (
       <TrackStripedWideModel key={i} position={[0, 0, -(i * 4)]}/>
@@ -78,7 +53,5 @@ export default function GeneralTrackMap() {
     {[...Array(9)].map((_, i) => (
       <TrackStripedWideModel key={i} position={[0, 0, (i * 4)]} rotation={[0, 0, 0]}/>
     ))}
-
-    <VehicleRacerLow position={[0, 0.2, 1]} rotation={[0, 0, 0]}/>
-  </>;
+  </group>;
 }

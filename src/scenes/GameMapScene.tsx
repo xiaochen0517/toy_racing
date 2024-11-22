@@ -1,4 +1,4 @@
-import GeneralTrackMap from "@/components/map/GeneralTrackMap.tsx";
+import GeneralTrackMap from "@/components/map/general/GeneralTrackMap.tsx";
 import {PerspectiveCamera} from "@react-three/drei";
 import {Physics} from "@react-three/rapier";
 

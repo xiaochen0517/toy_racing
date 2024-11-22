@@ -170,7 +170,6 @@ export function VehicleController(
     }
     // 防止镜头穿过地面
     const minCameraY = (vehicleController.current?.chassis().translation().y ?? 0) + 1;
-    console.log("minCameraY", minCameraY);
     VehicleUtil.cameraPosition.y = Math.max(VehicleUtil.cameraPosition.y, minCameraY);
     // 镜头平滑移动
     smoothedCameraPosition.lerp(VehicleUtil.cameraPosition, lerpDelta);
