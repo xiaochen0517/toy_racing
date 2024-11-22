@@ -75,7 +75,7 @@ export function VehicleRacerLow(props: VehicleComponentProps) {
         wheelPositions={WHEELS_POSITIONS}
         wheelBaseInfo={wheelInfo}
         accelerateForce={0.3}
-        brakeForce={0.005}
+        brakeForce={0.01}
         steerAngle={Math.PI * 0.04}
         cameraTracking={true}
         cameraOffset={new THREE.Vector3(0, 1, 4)}

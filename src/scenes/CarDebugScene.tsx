@@ -1,4 +1,4 @@
-import {OrbitControls, Stage} from "@react-three/drei";
+import {OrbitControls, Stage, Text} from "@react-three/drei";
 import Lights from "@/components/environment/Lights.tsx";
 import {Physics} from "@react-three/rapier";
 import {VehicleRacerLow} from "@/components/vehicles/VehicleRacerLow.tsx";
@@ -14,5 +14,10 @@ export default function CarDebugScene() {
       {/*<TestWall/>*/}
       <TestGround/>
     </Physics>
+
+    {[...Array(20)].map((_, i) => (
+      <Text key={i} color="white" position={[-2, 2, -i * 4]} fontSize={0.5}>
+        {i}
+      </Text>))}
   </>;
 }

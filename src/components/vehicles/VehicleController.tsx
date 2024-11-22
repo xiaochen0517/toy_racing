@@ -1,19 +1,11 @@
-import * as THREE from "three"
 import {MathUtils, Mesh, Object3D, Vector3} from "three"
 import {useKeyboardControls} from "@react-three/drei"
 import {ConvexHullCollider, RapierRigidBody, RigidBody, useRapier} from "@react-three/rapier";
 import {cloneElement, ReactElement, RefObject, useEffect, useRef, useState} from "react";
 import {useFrame, useThree} from "@react-three/fiber";
 import {useVehicleController, WheelInfo} from "@/utils/UseVehicleController.ts";
-import {Collider} from '@dimforge/rapier3d-compat'
-import {useControls} from "leva";
+import {Collider, DynamicRayCastVehicleController} from '@dimforge/rapier3d-compat'
 import {VehicleUtil} from "@/utils/VehicleUtil.ts";
-
-
-const _bodyPosition = new THREE.Vector3()
-const _airControlAngVel = new THREE.Vector3()
-const _cameraPosition = new THREE.Vector3()
-const _cameraTarget = new THREE.Vector3()
 
 type WheelBaseInfo = Omit<WheelInfo, "position">;
 type VehicleControllerProps = {
@@ -30,24 +22,26 @@ type VehicleControllerProps = {
   cameraOffset?: Vector3
   cameraTargetOffset?: Vector3
   showcase?: boolean
+  canMove?: boolean
 }
 
-export function VehicleController(props: VehicleControllerProps) {
-
-  /* Debug */
-  const {accelerateForce, brakeForce, steerAngle, cameraTracking} = useControls('vehicle-controller', {
-    accelerateForce: {value: props.accelerateForce ?? 0.3, min: 0, max: 1},
-    brakeForce: {value: props.brakeForce ?? 0.01, min: 0, max: 0.2, step: 0.001},
-    steerAngle: {value: props.steerAngle ?? Math.PI * 0.04, min: 0, max: Math.PI * 0.4},
-    cameraTracking: {value: props.cameraTracking ?? true, label: 'Camera Tracking'},
-  }, {collapsed: true})
-
-  const wheels: WheelInfo[] = [];
-  for (const wheelPosition of props.wheelPositions) {
-    wheels.push({...props.wheelBaseInfo, position: wheelPosition});
-  }
-  const cameraOffset = props.cameraOffset ?? new Vector3(0, 2, 3);
-  const cameraTargetOffset = props.cameraTargetOffset ?? new Vector3(0, 1, 0);
+export function VehicleController(
+  {
+    position,
+    rotation,
+    vehicleBodyMesh,
+    wheelMeshes,
+    wheelPositions,
+    wheelBaseInfo,
+    accelerateForce = 0.3,
+    brakeForce = 0.01,
+    steerAngle = Math.PI * 0.04,
+    cameraTracking,
+    cameraOffset = new Vector3(0, 2, 3),
+    cameraTargetOffset = new Vector3(0, 1, 0),
+    showcase = false,
+    canMove = true
+  }: VehicleControllerProps) {
 
   const {world, rapier} = useRapier();
   const state = useThree();
@@ -56,6 +50,7 @@ export function VehicleController(props: VehicleControllerProps) {
   const bodyRef = useRef<RapierRigidBody | null>(null);
   const wheelsRef: RefObject<(Object3D | null)[]> = useRef([]);
 
+  const [wheels] = useState<WheelInfo[]>([]);
   const [vertices, setVertices] = useState<number[]>([]);
   const [indices, setIndices] = useState<number[]>([]);
   useEffect(() => {
@@ -64,7 +59,10 @@ export function VehicleController(props: VehicleControllerProps) {
       setVertices(Array.from(geometry.attributes.position.array));
       setIndices(Array.from(geometry.index?.array ?? []));
     }
-  }, []);
+    for (const wheelPosition of wheelPositions) {
+      wheels.push({...wheelBaseInfo, position: wheelPosition});
+    }
+  }, [wheelBaseInfo, wheelPositions, bodyMeshRef, wheels]);
 
   const {vehicleController} = useVehicleController(bodyRef, wheelsRef as RefObject<Object3D[]>, wheels);
 
@@ -72,37 +70,43 @@ export function VehicleController(props: VehicleControllerProps) {
   const [smoothedCameraTarget] = useState(new Vector3());
 
   const [, getKeys] = useKeyboardControls();
-  const ground = useRef<Collider>()
+  const ground = useRef<Collider | null>(null);
 
-  const movePlayer = (delta: number) => {
-    if (!bodyRef.current || !vehicleController.current) {
+  /**
+   * 检测车辆是否在地面上
+   */
+  const groundRayCast = (controller: DynamicRayCastVehicleController) => {
+    const chassisRigidBody = controller.chassis();
+    const ray = new rapier.Ray(chassisRigidBody.translation(), {x: 0, y: -1, z: 0});
+    const rayCastResult = world.castRay(
+      ray, wheelBaseInfo.suspensionRestLength + 0.01, false, undefined, undefined, undefined, chassisRigidBody);
+    ground.current = rayCastResult ? rayCastResult.collider : null;
+  }
+
+  /**
+   * 如果车辆在空中，根据按键控制车辆的旋转
+   */
+  const airControl = (lerpDelta: number, controller: DynamicRayCastVehicleController) => {
+    if (ground.current) {
       return;
     }
-    const time = 1.0 - Math.pow(0.01, delta);
-    /* controls */
+    const keys = getKeys();
+    const chassisRigidBody = controller.chassis();
+    const rotations = VehicleUtil.getAirControlAngle(rapier, keys, chassisRigidBody, lerpDelta);
+    chassisRigidBody.setAngvel(rotations, true);
+  }
+
+  /**
+   * 引擎力、刹车力、转向力
+   */
+  const movePlayer = (controller: DynamicRayCastVehicleController) => {
     const {forward, backward, left, right, brake} = getKeys();
-    const controller = vehicleController.current;
-    if (!controller) {
-      console.error('controller is not ready');
-      return;
-    }
 
     const chassisRigidBody = controller.chassis();
     const ray = new rapier.Ray(chassisRigidBody.translation(), {x: 0, y: -1, z: 0});
-    const rayCastResult = world.castRay(ray, props.wheelBaseInfo.suspensionRestLength + 0.01, false, undefined, undefined, undefined, chassisRigidBody);
-    ground.current = rayCastResult ? rayCastResult.collider : undefined;
-
-    // air control
-    if (!ground.current) {
-      const forwardAngVel = Number(forward) - Number(backward);
-      const sideAngVel = Number(left) - Number(right);
-
-      const angVel = _airControlAngVel.set(forwardAngVel * time, sideAngVel * time, 0);
-      angVel.applyQuaternion(chassisRigidBody.rotation());
-      angVel.add(chassisRigidBody.angvel());
-      chassisRigidBody.setAngvel(new rapier.Vector3(angVel.x, angVel.y, angVel.z), true);
-      return;
-    }
+    const rayCastResult = world.castRay(
+      ray, wheelBaseInfo.suspensionRestLength + 0.01, false, undefined, undefined, undefined, chassisRigidBody);
+    ground.current = rayCastResult ? rayCastResult.collider : null;
 
     let engineForce = Number(forward) * accelerateForce - Number(backward) * accelerateForce;
     if (engineForce != 0) {
@@ -115,8 +119,6 @@ export function VehicleController(props: VehicleControllerProps) {
     controller.setWheelEngineForce(3, engineForce);
 
     const wheelBrake = Number(brake) * brakeForce;
-    // controller.setWheelBrake(0, wheelBrake);
-    // controller.setWheelBrake(1, wheelBrake);
     controller.setWheelBrake(2, wheelBrake);
     controller.setWheelBrake(3, wheelBrake);
 
@@ -126,72 +128,63 @@ export function VehicleController(props: VehicleControllerProps) {
     controller.setWheelSteering(0, steering);
     controller.setWheelSteering(1, steering);
   }
-  const moveCamera = (delta: number) => {
-    if (!bodyRef.current || !vehicleController.current) {
-      return;
-    }
-    /* camera */
-    const controller = vehicleController.current;
-    if (!controller) {
-      console.error('controller is not ready');
-      return;
-    }
+
+  /**
+   * 镜头跟随车辆
+   */
+  const moveCamera = (lerpDelta: number, controller: DynamicRayCastVehicleController) => {
     const chassisRigidBody = controller.chassis()
-
-    const time = 1.0 - Math.pow(0.01, delta)
-
-    // camera position
-    const cameraPosition = _cameraPosition
-
-    if (ground.current !== undefined && ground.current) {
-      // camera behind chassis
-      cameraPosition.copy(cameraOffset)
+    /* 车辆在地面和空中使用不同的镜头跟随方式 */
+    if (ground.current) {
+      // 车辆在地面
+      VehicleUtil.cameraPosition.copy(cameraOffset)
       const bodyWorldMatrix = bodyMeshRef.current.matrixWorld
-      cameraPosition.applyMatrix4(bodyWorldMatrix)
+      VehicleUtil.cameraPosition.applyMatrix4(bodyWorldMatrix)
     } else {
-      // camera behind velocity
+      // 车辆在空中
       const velocity = chassisRigidBody.linvel()
-      cameraPosition.copy(velocity)
-      cameraPosition.normalize()
-      cameraPosition.multiplyScalar(-10)
-      cameraPosition.add(chassisRigidBody.translation())
+      VehicleUtil.cameraPosition.copy(velocity)
+      VehicleUtil.cameraPosition.normalize()
+      VehicleUtil.cameraPosition.multiplyScalar(-10)
+      VehicleUtil.cameraPosition.add(chassisRigidBody.translation())
     }
-
-    cameraPosition.y = Math.max(cameraPosition.y, (vehicleController.current?.chassis().translation().y ?? 0) + 1)
-
-    smoothedCameraPosition.lerp(cameraPosition, time)
+    // 防止镜头穿过地面
+    const minCameraY = (vehicleController.current?.chassis().translation().y ?? 0) + 1
+    VehicleUtil.cameraPosition.y = Math.max(VehicleUtil.cameraPosition.y, minCameraY)
+    // 镜头平滑移动
+    smoothedCameraPosition.lerp(VehicleUtil.cameraPosition, lerpDelta)
     state.camera.position.copy(smoothedCameraPosition)
-
-    // camera target
-    const bodyPosition = bodyMeshRef.current.getWorldPosition(_bodyPosition)
-    const cameraTarget = _cameraTarget
-
-    cameraTarget.copy(bodyPosition)
-    cameraTarget.add(cameraTargetOffset)
-    smoothedCameraTarget.lerp(cameraTarget, time)
-
+    // 镜头看向车辆
+    const bodyPosition = bodyMeshRef.current.getWorldPosition(VehicleUtil.bodyPosition)
+    VehicleUtil.cameraTarget.copy(bodyPosition)
+    VehicleUtil.cameraTarget.add(cameraTargetOffset)
+    smoothedCameraTarget.lerp(VehicleUtil.cameraTarget, lerpDelta)
     state.camera.lookAt(smoothedCameraTarget)
   };
 
   useFrame((_state, delta) => {
-    if (props.showcase) {
-      return;
-    }
-    movePlayer(delta);
-    if (cameraTracking) {
-      moveCamera(delta);
-    }
+    if (!bodyRef.current || !vehicleController.current || showcase) return;
+
+    const controller = vehicleController.current;
+    if (!controller) return;
+
+    const lerpDelta = 1.0 - Math.pow(0.01, delta);
+    groundRayCast(controller);
+    airControl(lerpDelta, controller);
+
+    if (canMove) movePlayer(controller);
+    if (cameraTracking) moveCamera(lerpDelta, controller);
   });
 
   return (
-    <group {...props} dispose={null}>
-      <RigidBody ref={bodyRef} canSleep={false} colliders={false} type={!props.showcase ? "dynamic" : "fixed"}>
+    <group position={position} rotation={rotation} dispose={null}>
+      <RigidBody ref={bodyRef} canSleep={false} colliders={false} type={!showcase ? "dynamic" : "fixed"}>
         {vertices.length > 0 && indices.length > 0 && (
           <ConvexHullCollider args={[vertices]} mass={0.15}/>
         )}
 
-        {cloneElement(props.vehicleBodyMesh, {ref: bodyMeshRef})}
-        {props.wheelMeshes.map((wheelMesh, index) => {
+        {cloneElement(vehicleBodyMesh, {ref: bodyMeshRef})}
+        {wheelMeshes.map((wheelMesh, index) => {
           return cloneElement(wheelMesh, {
             key: index,
             ref: (itemRef: Object3D | null) => {
