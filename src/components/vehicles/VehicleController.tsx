@@ -93,7 +93,7 @@ export function VehicleController(
       chassisRigidBody
     );
     ground.current = groundRayResult ? groundRayResult.collider : null;
-
+    // ray cast debug
     if (groundArrowHelperRef.current) {
       groundArrowHelperRef.current.position.copy(VehicleUtil.vector2Vector3(groundRay.origin));
     } else {

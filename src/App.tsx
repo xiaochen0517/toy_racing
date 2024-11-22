@@ -15,7 +15,7 @@ export default function App() {
     <>
       <Canvas className="w-full h-full touch-none" shadows={true}>
         <Suspense fallback={<LoadingScene/>}>
-          <Perf position="top-left"/>
+          <Perf position="top-left" minimal={true}/>
           <color attach="background" args={["#202020"]}/>
           <Scene/>
         </Suspense>
