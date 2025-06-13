@@ -9,9 +9,17 @@ import {
 import {TrackStripedWideStraightHillEndModel} from "@/components/map/blocks/TrackStripedWideStraightHillEndModel.tsx";
 import {TrackStripedWideCornerSmallModel} from "@/components/map/blocks/TrackStripedWideCornerSmallModel.tsx";
 import {TrackStripedWideCurveModel} from "@/components/map/blocks/TrackStripedWideCurveModel.tsx";
+import DropCheckPlane from "@/components/map/base/DropCheckPlane.tsx";
 
-export default function GeneralTrackModel(props: JSX.IntrinsicElements['group']) {
-  return <group {...props}>
+type GeneralTrackModelProps = {
+  position?: [number, number, number];
+  rotation?: [number, number, number];
+  scale?: [number, number, number];
+  onReset?: () => void;
+}
+
+export default function GeneralTrackModel({position, rotation, scale, onReset}: GeneralTrackModelProps) {
+  return <group position={position} rotation={rotation} scale={scale}>
     <GateModel scale={[2, 2, 2]}/>
     {[...Array(10)].map((_, i) => (
       <TrackStripedWideModel key={i} position={[0, 0, -(i * 4)]}/>
@@ -50,8 +58,10 @@ export default function GeneralTrackModel(props: JSX.IntrinsicElements['group'])
     <TrackStripedWideModel position={[-18, 0, 58]} rotation={[0, Math.PI * 0.5, 0]}/>
     <TrackStripedWideCurveModel position={[-8, 0, 50]} rotation={[0, Math.PI, 0]}/>
 
-    {[...Array(9)].map((_, i) => (
-      <TrackStripedWideModel key={i} position={[0, 0, (i * 4)]} rotation={[0, 0, 0]}/>
-    ))}
+    {/*{[...Array(9)].map((_, i) => (*/}
+    {/*  <TrackStripedWideModel key={i} position={[0, 0, (i * 4)]} rotation={[0, 0, 0]}/>*/}
+    {/*))}*/}
+
+    <DropCheckPlane position={[0, -50, 0]} rotation={[0, 0, 0]} onDrop={() => onReset && onReset()}/>
   </group>;
 }

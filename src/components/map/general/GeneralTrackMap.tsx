@@ -10,7 +10,7 @@ import {VehicleRacerLow} from "@/components/vehicles/VehicleRacerLow.tsx";
 import StartCountDown from "@/components/map/base/StartCountDown.tsx";
 import GeneralTrackModel from "@/components/map/general/GeneralTrackModel.tsx";
 
-const DEBUG_CAMERA_POSITION = {x: -20, y: 0, z: 50};
+const DEBUG_CAMERA_POSITION = {x: -20, y: 0, z: -50};
 
 export default function GeneralTrackMap() {
 
@@ -30,14 +30,25 @@ export default function GeneralTrackMap() {
     setStarted(true);
   };
 
+  const [showVehicle, setShowVehicle] = useState<boolean>(true);
+  const resetVehicle = () => {
+    setShowVehicle(false);
+    setTimeout(() => {
+      setShowVehicle(true);
+    });
+  }
+
   return <>
     <Lights/>
     <OrbitControls ref={orbitControlsRef} makeDefault={true}/>
     <Sky sunPosition={[100, 200, 100]}/>
-    <GeneralTrackModel/>
+
+    <GeneralTrackModel
+      onReset={resetVehicle}
+    />
 
     <StartCountDown position={[0, 2, 0]} onStarted={handleStart}/>
 
-    <VehicleRacerLow position={[0, 0.2, 1]} rotation={[0, 0, 0]} started={started}/>
+    {showVehicle && <VehicleRacerLow position={[0, 0.2, 1]} started={started}/>}
   </>;
 }

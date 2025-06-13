@@ -198,7 +198,7 @@ export function VehicleController(
 
   return (
     <group position={position} rotation={rotation} dispose={null}>
-      <RigidBody ref={bodyRef} canSleep={false} colliders={false} type={!showcase ? "dynamic" : "fixed"}>
+      <RigidBody ref={bodyRef} canSleep={false} colliders={false} type={!showcase ? "dynamic" : "fixed"} userData={{type: "vehicle"}}>
         {vertices.length > 0 && indices.length > 0 && (
           <ConvexHullCollider args={[vertices]} mass={0.15}/>
         )}
