@@ -58,9 +58,9 @@ export default function GeneralTrackModel({position, rotation, scale, onReset}: 
     <TrackStripedWideModel position={[-18, 0, 58]} rotation={[0, Math.PI * 0.5, 0]}/>
     <TrackStripedWideCurveModel position={[-8, 0, 50]} rotation={[0, Math.PI, 0]}/>
 
-    {/*{[...Array(9)].map((_, i) => (*/}
-    {/*  <TrackStripedWideModel key={i} position={[0, 0, (i * 4)]} rotation={[0, 0, 0]}/>*/}
-    {/*))}*/}
+    {[...Array(9)].map((_, i) => (
+      <TrackStripedWideModel key={i} position={[0, 0, (i * 4)]} rotation={[0, 0, 0]}/>
+    ))}
 
     <DropCheckPlane position={[0, -50, 0]} rotation={[0, 0, 0]} onDrop={() => onReset && onReset()}/>
   </group>;

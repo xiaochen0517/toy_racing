@@ -4,6 +4,7 @@ import {Perf} from "r3f-perf";
 import {useSnapshot} from "valtio/react";
 import {Scenes, sceneStore} from "@/stores/ScenesStore.ts";
 import {Canvas} from "@react-three/fiber";
+import GameHelp from "@/components/html/GameHelp.tsx";
 
 export default function App() {
 
@@ -20,6 +21,7 @@ export default function App() {
           <Scene/>
         </Suspense>
       </Canvas>
+      <GameHelp/>
     </>
   )
 }
